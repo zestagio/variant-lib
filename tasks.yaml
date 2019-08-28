@@ -49,23 +49,25 @@ tasks:
 
       copy:
         script: |
+          CURRENT_DIR=${PWD}
           SOURCES=$(echo "{{ .sync_dir | toYaml }}" | yq -r keys[])
 
           for SOURCE in ${SOURCES}; do
             FDIGNORE=".git,.gitignore"
             DESTINATION=$(echo "{{ .sync_dir | toYaml }}" | yq -r .[\"${SOURCE}\"].destination)
-            EXCLUDE=$(echo "{{ .sync_dir | toYaml }}" | yq -r .[\"${SOURCE}\"].exclude)
+            EXCLUDE=$(echo "{{ .sync_dir | toYaml }}" | yq -r ".[\"${SOURCE}\"].exclude // empty | join(\",\")")
 
             echo "Copying {{ .working_dir }}/{{ .source_dir }}/${SOURCE} into {{ .working_dir }}/{{ .target_dir }}/${DESTINATION}..."
 
-            if [ ! "${EXCLUDE}" == "null" ]; then
+            if [ ! -z "${EXCLUDE}" ]; then
               FDIGNORE="${FDIGNORE},${EXCLUDE}"
             fi
 
             echo ${FDIGNORE} | tr ',' "\n" | cat > {{ .working_dir }}/.fdignore
 
-            fd . -d 1 -H {{ .working_dir }}/{{ .target_dir }}/${DESTINATION} -X rm -r
-            fd . -d 1 -H {{ .working_dir }}/{{ .source_dir }}/${SOURCE} -X cp -r '{}' {{ .working_dir }}/{{ .target_dir }}/${DESTINATION}
+            fd . -tf -H {{ .working_dir }}/{{ .target_dir }}/${DESTINATION} -X rm
+            find {{ .working_dir }}/{{ .target_dir }}/${DESTINATION} -type d -empty -delete
+            cd {{ .working_dir }}/{{ .source_dir }}/${SOURCE} && fd . -tf -H . -X rsync -R '{}' ${CURRENT_DIR}/{{ .working_dir }}/{{ .target_dir }}/${DESTINATION}
           done
 
       finalize:
