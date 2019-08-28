@@ -19,11 +19,11 @@ parameters:
     type: string
     default: target
   - name: sync_dir
-    type: string
-    default: .
-  - name: exclude
-    type: string
-    default: .git
+    type: object
+    default:
+      .:
+        destination: .
+        exclude: .git
   - name: gitlab_host
     type: string
   - name: gitlab_access_token
@@ -49,16 +49,24 @@ tasks:
 
       copy:
         script: |
-          echo "Copying {{ .working_dir }}/{{ .source_dir }}/{{ .sync_dir}} into {{ .working_dir }}/{{ .target_dir }}..."
+          SOURCES=$(echo "{{ .sync_dir | toYaml }}" | yq -r keys[])
 
-          echo .git,.gitignore,{{ .exclude }} | tr ',' "\n" | cat > {{ .working_dir }}/.fdignore
-          fd . -d 1 -H {{ .working_dir }}/{{ .target_dir }} -X rm -r
-          fd . -d 1 -H {{ .working_dir }}/{{ .source_dir }}/{{ .sync_dir}} -X cp -r '{}' {{ .working_dir }}/{{ .target_dir }}
+          for SOURCE in ${SOURCES}; do
+            FDIGNORE=".git,.gitignore"
+            DESTINATION=$(echo "{{ .sync_dir | toYaml }}" | yq -r .[\"${SOURCE}\"].destination)
+            EXCLUDE=$(echo "{{ .sync_dir | toYaml }}" | yq -r .[\"${SOURCE}\"].exclude)
 
-      finalize:
-        script: |
-          echo "Removing working directory..."
-          rm -fR {{ .working_dir }}
+            echo "Copying {{ .working_dir }}/{{ .source_dir }}/${SOURCE} into {{ .working_dir }}/{{ .target_dir }}/${DESTINATION}..."
+
+            if [ ! "${EXCLUDE}" == "null" ]; then
+              FDIGNORE="${FDIGNORE},${EXCLUDE}"
+            fi
+
+            echo ${FDIGNORE} | tr ',' "\n" | cat > {{ .working_dir }}/.fdignore
+
+            fd . -d 1 -H {{ .working_dir }}/{{ .target_dir }}/${DESTINATION} -X rm -r
+            fd . -d 1 -H {{ .working_dir }}/{{ .source_dir }}/${SOURCE} -X cp -r '{}' {{ .working_dir }}/{{ .target_dir }}/${DESTINATION}
+          done
 
     steps:
       - task: sync.initialize
