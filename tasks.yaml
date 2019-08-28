@@ -68,6 +68,11 @@ tasks:
             fd . -d 1 -H {{ .working_dir }}/{{ .source_dir }}/${SOURCE} -X cp -r '{}' {{ .working_dir }}/{{ .target_dir }}/${DESTINATION}
           done
 
+      finalize:
+        script: |
+          echo "Removing working directory..."
+          rm -fR {{ .working_dir }}
+
     steps:
       - task: sync.initialize
       - task: git.clone
