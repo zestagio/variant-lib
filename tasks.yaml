@@ -97,7 +97,7 @@ tasks:
             then:
               - task: git.commit_and_push
               - task: gitlab.create_mr
-           - task: sync.finalize
+          - task: sync.finalize
 
   git:
     tasks:
