@@ -76,28 +76,28 @@ tasks:
           rm -fR {{ .working_dir }}
 
     steps:
-      - task: sync.initialize
-      - task: git.clone
-        arguments:
-          destination: "{{ .source_dir }}"
-          repo: "{{ .source_repo }}"
-          branch: "{{ .source_branch }}"
-      - task: git.clone
-        arguments:
-          destination: "{{ .target_dir }}"
-          repo: "{{ .target_repo }}"
-          branch: "{{ .target_branch }}"
-          clone_options: --single-branch
       - if:
           - task: gitlab.check_mr
         then:
+          - task: sync.initialize
+          - task: git.clone
+            arguments:
+              destination: "{{ .source_dir }}"
+              repo: "{{ .source_repo }}"
+              branch: "{{ .source_branch }}"
+          - task: git.clone
+            arguments:
+              destination: "{{ .target_dir }}"
+              repo: "{{ .target_repo }}"
+              branch: "{{ .target_branch }}"
+              clone_options: --single-branch
           - task: sync.copy
           - if:
               - task: git.check_diff
             then:
               - task: git.commit_and_push
               - task: gitlab.create_mr
-      - task: sync.finalize
+           - task: sync.finalize
 
   git:
     tasks:
